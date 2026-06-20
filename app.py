@@ -8,7 +8,7 @@ from math import radians, cos, sin, asin, sqrt
 
 st.set_page_config(page_title="MekanBul", page_icon="🗺️", layout="centered")
 
-# 🔑 GOOGLE API ANAHTARINIZI BURAYA YAPIŞTIRIN
+# 🔑 GOOGLE API ANAHTARINIZ
 GOOGLE_API_KEY = "AIzaSyAUQ005Ck_RrVCLDjBAAvx6e1oia-EH99o"
 
 # 📝 DOSYA VERİTABANLARI (JSON)
@@ -271,6 +271,10 @@ with sekme_kesfet:
             open_now = mekan.get("currentOpeningHours", {}).get("openNow", None)
             google_yorumları = mekan.get("reviews", [])
             
+            loc_data = mekan.get("location", {})
+            m_lat = loc_data.get("latitude")
+            m_lng = loc_data.get("longitude")
+            
             durum_html = "<span class='rozet-acik'>🟢 ŞU AN AÇIK</span>" if open_now is True else "<span class='rozet-kapali'>🔴 ŞU AN KAPALI</span>" if open_now is False else "<span style='color:gray;'>⏳ Durum Bilinmiyor</span>"
             
             # Kart Başlığı
@@ -283,7 +287,7 @@ with sekme_kesfet:
                     if mekan_id in tüm_favoriler:
                         del tüm_favoriler[mekan_id]
                     else:
-                        tüm_favoriler[mekan_id] = {"isim": isim, "adres": adres, "puan": g_puan, "lat": mekan.get("location", {}).get("latitude"), "lng": mekan.get("location", {}).get("longitude")}
+                        tüm_favoriler[mekan_id] = {"isim": isim, "adres": adres, "puan": g_puan, "lat": m_lat, "lng": m_lng}
                     veriyi_kaydet(FAVORILER_DOSYASI, tüm_favoriler)
                     st.rerun()
 
@@ -300,9 +304,18 @@ with sekme_kesfet:
                     foto_url = f"https://places.googleapis.com/v1/{photos[0].get('name')}/media?maxHeightPx=400&maxWidthPx=600&key={GOOGLE_API_KEY}"
                     st.image(foto_url, use_container_width=True)
                 
-                # --- HATA DÜZELTİLEN ALAN (with yerine if kullanıldı) ---
-                yorumları_goster = st.checkbox("💬 Mekan Yorumlarını Göster / Gizle", key=f"chk_{mekan_id}")
+                # 🌟 İşlem Butonları Sütunu
+                btn_col1, btn_col2 = st.columns(2)
+                
+                # 📍 GOOGLE MAPS YOL TARİFİ LINK BUTONU
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={m_lat},{m_lng}"
+                btn_col1.link_button("🗺️ Google Maps'te Aç", url=maps_url, use_container_width=True)
+                
+                # Sürüm hatasından kurtarılan Checkbox alanı
+                yorumları_goster = btn_col2.checkbox("💬 Detayları ve Yorumları Gör", key=f"chk_{mekan_id}")
+                
                 if yorumları_goster:
+                    st.markdown("---")
                     # Google Canlı Yorumları
                     st.markdown("##### 🌐 Google Haritalar Kullanıcı Yorumları:")
                     if google_yorumları:
@@ -337,7 +350,6 @@ with sekme_kesfet:
                             veriyi_kaydet(YORUM_DOSYASI, tüm_yorumlar)
                             st.success("Yorumunuz başarıyla yayınlandı!")
                             st.rerun()
-                # --- DÜZELTME BİTTİ ---
             st.write("") 
     else:
         st.info("Kriterlere uygun mekan bulunamadı.")
@@ -351,12 +363,16 @@ with sekme_favoriler:
                 st.write(f"### 🏪 {f_bilgi['isim']}")
                 st.caption(f"📍 {f_bilgi['adres']} | ⭐ Puan: {f_bilgi['puan']}")
                 
-                col_fav1, col_fav2 = st.columns(2)
-                if col_fav1.button("🗺️ Haritada Konuma Git", key=f"go_map_{f_id}", use_container_width=True):
+                col_fav1, col_fav2, col_fav3 = st.columns(3)
+                if col_fav1.button("🗺️ Haritada Göster", key=f"go_map_{f_id}", use_container_width=True):
                     st.session_state.enlem = f_bilgi["lat"]
                     st.session_state.boylam = f_bilgi["lng"]
                     st.rerun()
-                if col_fav2.button("❌ Favorilerden Çıkar", key=f"del_fav_{f_id}", use_container_width=True):
+                    
+                fav_maps_url = f"https://www.google.com/maps/search/?api=1&query={f_bilgi['lat']},{f_bilgi['lng']}"
+                col_fav2.link_button("🚗 Yol Tarifi Al", url=fav_maps_url, use_container_width=True)
+                
+                if col_fav3.button("❌ Çıkar", key=f"del_fav_{f_id}", use_container_width=True):
                     del tüm_favoriler[f_id]
                     veriyi_kaydet(FAVORILER_DOSYASI, tüm_favoriler)
                     st.rerun()
